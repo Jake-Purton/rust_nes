@@ -56,7 +56,7 @@ lazy_static! {
 
         OpCode::new(0x20, "JSR", 3, 6, AddressingMode::NoneAddressing),
 
-        OpCode::new(0x06, "ASL", 2, 5, AddressingMode::ZeroPage),
+        OpCode::new(0x06, "ASL", 2, 5, AddressingMode::Accumulator),
 
         OpCode::new(0x09, "ORA", 2, 2, AddressingMode::Immediate),
         OpCode::new(0x05, "ORA", 2, 3, AddressingMode::ZeroPage),
@@ -77,10 +77,17 @@ lazy_static! {
 
         OpCode::new(0x60, "RST", 1, 6, AddressingMode::Immediate /* irrelavent */),
 
+        OpCode::new(0x2a, "ROL", 1, 2, AddressingMode::Accumulator),
+        OpCode::new(0x26, "ROL", 2, 5, AddressingMode::ZeroPage),
 
+        OpCode::new(0xc9, "CMP", 2, 2, AddressingMode::Immediate),
+        OpCode::new(0xc5, "CMP", 2, 3, AddressingMode::ZeroPage),
 
         OpCode::new(0x38, "SEC", 1, 2, AddressingMode::ZeroPage /* actually implied addressing mode but unaffected */),
         OpCode::new(0x18, "CLC", 1, 2, AddressingMode::ZeroPage /* actually implied addressing mode but unaffected */),
+
+        OpCode::new(0xf0, "BEQ", 2, 4, AddressingMode::Immediate /* who knows */),
+
 
     ];
 
