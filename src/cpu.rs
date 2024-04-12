@@ -150,6 +150,18 @@ impl CPU {
         self.update_zero_and_negative_flags(self.register_a);
     }
 
+    fn stack_pop(&mut self) -> u8 {
+        self.stack_pointer = self.stack_pointer.wrapping_add(1);
+        self.mem_read((STACK as u16) + self.stack_pointer as u16)
+    }
+
+    fn stack_pop_u16(&mut self) -> u16 {
+        let lo = self.stack_pop() as u16;
+        let hi = self.stack_pop() as u16;
+
+        hi << 8 | lo
+    }
+
     fn sta(&mut self, mode: &AddressingMode) {
         let addr = self.get_operand_address(mode);
         self.mem_write(addr, self.register_a);
@@ -158,6 +170,24 @@ impl CPU {
     fn tax(&mut self) {
         self.register_x = self.register_a;
         self.update_zero_and_negative_flags(self.register_x);
+    }
+
+    fn asl(&mut self, mode: &AddressingMode) {
+
+        let addr = self.get_operand_address(mode);
+        let value = self.mem_read(addr);
+
+
+        if value & 0b1000_0000 > 0 {
+            self.status = self.status | 0b0000_0001
+        } else {
+            self.status = self.status & 0b1111_1110
+        }
+
+        self.mem_write(addr, value << 1 );
+
+        self.update_zero_and_negative_flags(self.register_a)
+
     }
 
     fn update_zero_and_negative_flags(&mut self, result: u8) {
@@ -205,6 +235,32 @@ impl CPU {
 
     }
 
+    fn sec (&mut self) {
+        self.status = self.status | 0b0000_0001;
+    }
+
+    fn clc (&mut self) {
+        self.status = self.status & 0b1111_1110;
+    }
+
+    fn ora (&mut self, mode: &AddressingMode) {
+        let addr = self.get_operand_address(&mode);
+        let value = self.mem_read(addr);
+
+        self.register_a = value | self.register_a;
+
+        self.update_zero_and_negative_flags(self.register_a)
+    }
+
+    fn and (&mut self, mode: &AddressingMode) {
+        let addr = self.get_operand_address(&mode);
+        let value = self.mem_read(addr);
+
+        self.register_a = value & self.register_a;
+
+        self.update_zero_and_negative_flags(self.register_a)
+    }
+
     pub fn load_and_run(&mut self, program: Vec<u8>) {
         self.load(program);
         self.reset();
@@ -212,8 +268,11 @@ impl CPU {
     }
 
     pub fn load(&mut self, program: Vec<u8>) {
-        self.memory[0x8000 .. (0x8000 + program.len())].copy_from_slice(&program[..]);
-        self.mem_write_u16(0xFFFC, 0x8000);
+        // self.memory[0x8000 .. (0x8000 + program.len())].copy_from_slice(&program[..]);
+        // self.mem_write_u16(0xFFFC, 0x8000);
+
+        self.memory[0x0600..(0x0600 + 309)].copy_from_slice(&program[..]);
+        self.mem_write_u16(0xFFFC, 0x0600);
     }
 
     pub fn reset(&mut self) {
@@ -245,7 +304,11 @@ impl CPU {
             self.program_counter += 1;
             let program_counter_state = self.program_counter;
 
+            // println!("pc: {}, acc: {}, x: {}, y: {}, status: {}", program_counter_state, self.register_a, self.register_x, self.register_y, self.status);
+
             let opcode = opcodes.get(&code).expect(&format!("OpCode {:x} is not recognized", code));
+
+            // println!("code: {}", opcode.code);
 
             match code {
                 // LDA
@@ -267,7 +330,22 @@ impl CPU {
                 0x20 => {
                     self.stack_push_u16(self.program_counter + 2 - 1);
                     let target_address = self.mem_read_u16(self.program_counter);
-                    self.program_counter = target_address
+                    self.program_counter = target_address;
+                    // println!("jump to {target_address}");
+
+                }
+
+                // return from subroutine (rst)
+                0x60 => {
+                    let address = self.stack_pop_u16();
+
+                    // println!("return to {address}");
+                    self.program_counter = address - 1;
+                }
+
+                // logical and (AND)
+                0x29 | 0x25 | 0x35 | 0x2d | 0x3d | 0x39 | 0x21 | 0x31 => {
+                    self.and(&opcode.mode)
                 }
                 
                 // Transfer accumulator to x
@@ -275,6 +353,17 @@ impl CPU {
 
                 // Increment x
                 0xe8 => self.inx(),
+
+                // Arithmetic shift left
+                0x06 => self.asl(&opcode.mode),
+
+                // Set carry flag to 1
+                0x38 => self.sec(),
+
+                // accumulator or
+                0x09 | 0x05 | 0x15 | 0x0d | 0x1d | 0x19 | 0x01 | 0x11 => self.ora(&opcode.mode),
+
+                0x18 => self.clc(),
 
                 // BRK
                 0x00 => return,
@@ -300,6 +389,14 @@ mod test {
         assert_eq!(cpu.register_a, 5);
         assert!(cpu.status & 0b0000_0010 == 0);
         assert!(cpu.status & 0b1000_0000 == 0);
+    }
+
+    #[test]
+    fn test_0x06_left_shift() {
+        let mut cpu = CPU::new();
+        cpu.load_and_run(vec![0xA9, 0b1000_1111, 0x69, 1, 0x85, 0xFF, 0x06, 0xFF, 0xa5, 0xFF]);
+        assert_eq!(cpu.register_a, 0b0010_0000);
+        assert!(cpu.status & 0b0000_0001 == 1);
     }
 
     #[test]

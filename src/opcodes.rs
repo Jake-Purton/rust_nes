@@ -56,6 +56,32 @@ lazy_static! {
 
         OpCode::new(0x20, "JSR", 3, 6, AddressingMode::NoneAddressing),
 
+        OpCode::new(0x06, "ASL", 2, 5, AddressingMode::ZeroPage),
+
+        OpCode::new(0x09, "ORA", 2, 2, AddressingMode::Immediate),
+        OpCode::new(0x05, "ORA", 2, 3, AddressingMode::ZeroPage),
+        OpCode::new(0x15, "ORA", 2, 4, AddressingMode::ZeroPage_X),
+        OpCode::new(0x0d, "ORA", 2, 4, AddressingMode::Absolute),
+        OpCode::new(0x19, "ORA", 2, 4, AddressingMode::Absolute_Y),
+        OpCode::new(0x01, "ORA", 2, 6, AddressingMode::Indirect_X),
+        OpCode::new(0x11, "ORA", 2, 5, AddressingMode::Indirect_Y),
+
+        OpCode::new(0x29, "AND", 2, 2, AddressingMode::Immediate),
+        OpCode::new(0x25, "AND", 2, 3, AddressingMode::ZeroPage),
+        OpCode::new(0x35, "AND", 2, 4, AddressingMode::ZeroPage_X),
+        OpCode::new(0x2d, "AND", 3, 4, AddressingMode::Absolute),
+        OpCode::new(0x3d, "AND", 3, 4, AddressingMode::Absolute_X),
+        OpCode::new(0x39, "AND", 3, 4, AddressingMode::Absolute_Y),
+        OpCode::new(0x21, "AND", 2, 6, AddressingMode::Indirect_X),
+        OpCode::new(0x31, "AND", 2, 5, AddressingMode::Indirect_Y),
+
+        OpCode::new(0x60, "RST", 1, 6, AddressingMode::Immediate /* irrelavent */),
+
+
+
+        OpCode::new(0x38, "SEC", 1, 2, AddressingMode::ZeroPage /* actually implied addressing mode but unaffected */),
+        OpCode::new(0x18, "CLC", 1, 2, AddressingMode::ZeroPage /* actually implied addressing mode but unaffected */),
+
     ];
 
 

@@ -1,6 +1,6 @@
-use std::collections::{hash_set, HashSet, HashMap};
+use std::collections::{HashSet, HashMap};
 
-use crate::{opcodes::OPCODES_MAP, cpu::CPU};
+use crate::cpu::CPU;
 
 pub mod cpu;
 pub mod opcodes;
@@ -55,6 +55,6 @@ fn main() {
 
     let mut cpu = CPU::new();
 
-    cpu.load_and_run(game_code)
+    cpu.load_and_run(game_code);
 
 }
