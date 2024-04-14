@@ -1,4 +1,4 @@
-use std::collections::{HashSet, HashMap};
+use sdl2::pixels::Color;
 
 use crate::cpu::CPU;
 
@@ -8,6 +8,19 @@ pub mod opcodes;
 #[macro_use]
 extern crate lazy_static;
 
+pub fn color(byte: u8) -> Color {
+    match byte {
+        0 => sdl2::pixels::Color::BLACK,
+        1 => sdl2::pixels::Color::WHITE,
+        2 | 9 => sdl2::pixels::Color::GREY,
+        3 | 10 => sdl2::pixels::Color::RED,
+        4 | 11 => sdl2::pixels::Color::GREEN,
+        5 | 12 => sdl2::pixels::Color::BLUE,
+        6 | 13 => sdl2::pixels::Color::MAGENTA,
+        7 | 14 => sdl2::pixels::Color::YELLOW,
+        _ => sdl2::pixels::Color::CYAN,
+    }
+ }
 
 fn main() {
     let game_code: Vec<u8> = vec![
@@ -32,26 +45,6 @@ fn main() {
         0xa6, 0x03, 0xa9, 0x00, 0x81, 0x10, 0xa2, 0x00, 0xa9, 0x01, 0x81, 0x10, 0x60, 0xa2, 0x00, 0xea,
         0xea, 0xca, 0xd0, 0xfb, 0x60
     ];
-
-    let mut set: HashSet<u8> = HashSet::new();
-
-    let mut count = 0;
-
-    for i in &game_code {
-
-        if set.insert(*i) {
-            let ref opcodes: HashMap<u8, &'static opcodes::OpCode> = *opcodes::OPCODES_MAP;
-
-            if opcodes.get(&i).is_none() {
-                println!("{:#04X?}", i);
-                count += 1;
-            }
-
-        }
-
-    }
-
-    println!("count: {}", count);
 
     let mut cpu = CPU::new();
 
