@@ -109,6 +109,12 @@ lazy_static! {
         OpCode::new(0xae, "LDX", 3, 4, AddressingMode::Absolute),
         OpCode::new(0xbe, "LDX", 3, 4, AddressingMode::Absolute_Y),
 
+        OpCode::new(0xa0, "LDY", 2, 2, AddressingMode::Immediate),
+        OpCode::new(0xa4, "LDY", 2, 3, AddressingMode::ZeroPage),
+        OpCode::new(0xb4, "LDY", 2, 4, AddressingMode::ZeroPage_X),
+        OpCode::new(0xac, "LDY", 3, 4, AddressingMode::Absolute),
+        OpCode::new(0xbc, "LDY", 3, 4, AddressingMode::Absolute_X),
+
         OpCode::new(0x29, "AND", 2, 2, AddressingMode::Immediate),
         OpCode::new(0x25, "AND", 2, 3, AddressingMode::ZeroPage),
         OpCode::new(0x35, "AND", 2, 4, AddressingMode::ZeroPage_X),
@@ -136,6 +142,10 @@ lazy_static! {
         OpCode::new(0x10, "BPL", 2, 2, AddressingMode::NoneAddressing),
         OpCode::new(0xb0, "BCS", 2, 2, AddressingMode::NoneAddressing),
         OpCode::new(0x90, "BCC", 2, 2, AddressingMode::NoneAddressing),
+
+        // no operation
+        OpCode::new(0xea, "NOP", 1, 1, AddressingMode::NoneAddressing),
+
 
         OpCode::new(0x24, "BIT", 2, 3, AddressingMode::ZeroPage),
 

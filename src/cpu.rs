@@ -1,4 +1,6 @@
-use std::collections::HashMap;
+use std::{collections::HashMap};
+use sdl2::{event::Event, keyboard::Keycode, EventPump};
+
 use crate::{color, opcodes};
 
 const STACK: u16 = 0x0100;
@@ -22,10 +24,10 @@ pub enum AddressingMode {
 
 const CARRY: u8 = 0b00000001;
 const ZERO: u8 = 0b00000010;
-const INTERRUPT_DISABLE: u8 = 0b00000100;
-const DECIMAL_MODE: u8 = 0b00001000;
-const BREAK: u8 = 0b00010000;
-const BREAK2: u8 = 0b00100000;
+// const INTERRUPT_DISABLE: u8 = 0b00000100;
+// const DECIMAL_MODE: u8 = 0b00001000;
+// const BREAK: u8 = 0b00010000;
+// const BREAK2: u8 = 0b00100000;
 const OVERFLOW: u8 = 0b01000000;
 const NEGATIVE: u8 = 0b10000000;
 
@@ -53,7 +55,7 @@ pub struct CPU {
     memory: [u8; 0xFFFF]
 }
 
-trait Mem {
+pub trait Mem {
     fn mem_read(&self, addr: u16) -> u8; 
 
     fn mem_write(&mut self, addr: u16, data: u8);
@@ -95,6 +97,30 @@ impl CPU {
             stack_pointer: STACK_RESET,
         }
     }
+
+    pub fn handle_user_input(&mut self, event_pump: &mut EventPump) {
+        for event in event_pump.poll_iter() {
+            match event {
+                Event::Quit { .. } | Event::KeyDown { keycode: Some(Keycode::Escape), .. } => {
+                    std::process::exit(0)
+                },
+                Event::KeyDown { keycode: Some(Keycode::W), .. } => {
+                    self.mem_write(0xff, 0x77);
+                },
+                Event::KeyDown { keycode: Some(Keycode::S), .. } => {
+                    self.mem_write(0xff, 0x73);
+                },
+                Event::KeyDown { keycode: Some(Keycode::A), .. } => {
+                    self.mem_write(0xff, 0x61);
+                },
+                Event::KeyDown { keycode: Some(Keycode::D), .. } => {
+                    self.mem_write(0xff, 0x64);
+                }
+                _ => {/* do nothing */}
+            }
+        }
+    }
+
 
     fn get_operand_address(&self, mode: &AddressingMode) -> u16 {
 
@@ -168,6 +194,14 @@ impl CPU {
 
         self.register_x = value;
         self.update_zero_and_negative_flags(self.register_x);
+    }
+
+    fn ldy(&mut self, mode: &AddressingMode) {
+        let addr = self.get_operand_address(&mode);
+        let value = self.mem_read(addr);
+
+        self.register_y = value;
+        self.update_zero_and_negative_flags(self.register_y);
     }
 
     fn sta(&mut self, mode: &AddressingMode) {
@@ -328,23 +362,16 @@ impl CPU {
         self.update_zero_and_negative_flags(self.register_a)
     }
 
-    fn cmp (&mut self, mode: &AddressingMode) {
-
-        let addr = self.get_operand_address(&mode);
-        
-        let a = self.register_a;
-        let m = self.mem_read(addr);
-
-        if a >= m {
+    fn compare(&mut self, mode: &AddressingMode, compare_with: u8) {
+        let addr = self.get_operand_address(mode);
+        let data = self.mem_read(addr);
+        if data <= compare_with {
             self.sec();
         } else {
             self.clc();
         }
-        if a == m {
-            self.clear_zero();
-        } else {
-            self.set_zero();
-        }
+
+        self.update_zero_and_negative_flags(compare_with.wrapping_sub(data));
     }
 
     fn cpx (&mut self, mode: &AddressingMode) {
@@ -560,15 +587,11 @@ impl CPU {
         self.update_zero_and_negative_flags(data);
     }
     
-    fn read_screen_state(&self, frame: &mut [u8; 32 * 3 * 32]) -> bool {
+    pub fn read_screen_state(&self, frame: &mut [u8; 32 * 3 * 32]) -> bool {
         let mut frame_idx = 0;
         let mut update = false;
         for i in 0x0200..0x600 {
             let color_idx = self.mem_read(i as u16);
-
-            if color_idx == 1 {
-                println!("happy")
-            }
 
             let (b1, b2, b3) = color(color_idx).rgb();
             if frame[frame_idx] != b1 || frame[frame_idx + 1] != b2 || frame[frame_idx + 2] != b3 {
@@ -583,19 +606,30 @@ impl CPU {
     }
 
     pub fn run(&mut self) {
+        self.run_with_callback(|_| {});
+    }
+
+    pub fn run_with_callback<F>(&mut self, mut callback: F)
+    where
+        F: FnMut(&mut CPU),
+    {
         let ref opcodes: HashMap<u8, &'static opcodes::OpCode> = *opcodes::OPCODES_MAP;
-        let mut frame: [u8; 32 * 3 * 32] = [0; 32 * 3 * 32];
 
         loop {
+
+            callback(self);
+
             let code = self.mem_read(self.program_counter);
             self.program_counter += 1;
             let program_counter_state = self.program_counter;
 
             let opcode = opcodes.get(&code).expect(&format!("OpCode {:x} is not recognized", code));
 
-            println!("pc: {}, acc: {:b}, x: {}, y: {}, status: {:b}, opcode: {}, {:x}", program_counter_state - 0x600, self.register_a, self.register_x, self.register_y, self.status, opcode.mnemonic, opcode.code);
+            // println!("pc: {}, acc: {:b}, x: {}, y: {}, status: {:b}, opcode: {}, {:x}", program_counter_state - 0x600, self.register_a, self.register_x, self.register_y, self.status, opcode.mnemonic, opcode.code);
             
             // println!("code: {}", opcode.code);
+
+
 
             match code {
                 // LDA
@@ -621,6 +655,11 @@ impl CPU {
                 /* BPL */
                 0x10 => {
                     self.branch(!(self.status & NEGATIVE > 0));
+                }
+
+                // nop
+                0xea => {
+
                 }
 
                 /* BMI */
@@ -654,6 +693,9 @@ impl CPU {
                 // LDX
                 0xa2 | 0xae | 0xbe | 0xa6 | 0xb6 => self.ldx(&opcode.mode),
 
+                // LDY
+                0xa0 | 0xa4 | 0xb4 | 0xac | 0xbc => self.ldy(&opcode.mode),
+
                 /* STA */
                 0x85 | 0x95 | 0x8d | 0x9d | 0x99 | 0x81 | 0x91 => {
                     self.sta(&opcode.mode);
@@ -677,12 +719,13 @@ impl CPU {
                     self.stack_push_u16(self.program_counter + 2 - 1);
                     let target_address = self.mem_read_u16(self.program_counter);
                     self.program_counter = target_address;
-                    println!("jump to {}", target_address - 0x600);
 
                 }
 
-                // compare
-                0xc9 | 0xc5 => self.cmp(&opcode.mode),
+                /* CMP */
+                0xc9 | 0xc5 | 0xd5 | 0xcd | 0xdd | 0xd9 | 0xc1 | 0xd1 => {
+                    self.compare(&opcode.mode, self.register_a);
+                }
 
                 // return from subroutine (rst)
                 0x60 => {
@@ -756,9 +799,6 @@ impl CPU {
             if program_counter_state == self.program_counter {
                 self.program_counter += (opcode.len - 1) as u16;
             }
-
-            self.read_screen_state(&mut frame);
-            // println!("{:?}", frame);
             
         }
     }
